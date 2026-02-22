@@ -1,0 +1,40 @@
+import threading
+import time
+
+# --- ফাইল ডিলিট করার ফাংশন ---
+def delete_message_after_delay(chat_id, message_id, delay_seconds):
+    time.sleep(delay_seconds)
+    try:
+        bot.delete_message(chat_id, message_id)
+        # ইউজারকে একটি নোটিফিকেশন দেওয়া (ঐচ্ছিক)
+        bot.send_message(chat_id, "⚠️ **নিরাপত্তার কারণে ফাইলটি ১০ মিনিট পর মুছে ফেলা হয়েছে।**")
+    except Exception as e:
+        print(f"Error deleting message: {e}")
+
+# --- ইউজার যখন বাটনে ক্লিক করবে ---
+@bot.callback_query_handler(func=lambda call: call.data.startswith('get_'))
+def get_file(call):
+    file_msg_id = call.data.split('_')[1]
+    
+    # প্রথমে লোডিং টেক্সট দেখান
+    bot.edit_message_text("⚡ **ফাইলটি আপনার চ্যাটে পাঠানো হচ্ছে...**", call.message.chat.id, call.message.message_id)
+    time.sleep(2)
+    
+    try:
+        # ফাইলটি ইউজারের কাছে পাঠানো
+        sent_msg = bot.copy_message(call.message.chat.id, CHANNEL_ID, int(file_msg_id))
+        
+        # ইউজারকে সতর্ক করা
+        bot.send_message(call.message.chat.id, 
+            "✅ **ফাইলটি সফলভাবে পাঠানো হয়েছে!**\n\n"
+            "⏳ **সতর্কতা:** প্রিমিয়াম সিকিউরিটির কারণে এই ফাইলটি ঠিক **১০ মিনিট** পর আপনার চ্যাট থেকে অটোমেটিক ডিলিট হয়ে যাবে। দয়া করে এর মধ্যে ফাইলটি সেভ বা ফরওয়ার্ড করে নিন।"
+        )
+        
+        # আগের বাটন মেসেজটি ডিলিট করা
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+
+        # ১০ মিনিট (৬০০ সেকেন্ড) পর ডিলিট করার টাইমার চালু করা
+        threading.Thread(target=delete_message_after_delay, args=(call.message.chat.id, sent_msg.message_id, 600)).start()
+        
+    except Exception as e:
+        bot.send_message(call.message.chat.id, "❌ ফাইলটি পাঠাতে সমস্যা হয়েছে।")
